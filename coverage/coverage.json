@@ -5,21 +5,21 @@
     "total": 0
   },
   "functions": {
-    "coverage": "74.40%",
-    "missed": 1368,
-    "total": 5343
+    "coverage": "74.03%",
+    "missed": 1609,
+    "total": 6196
   },
-  "generated_at": "2026-08-31T20:21:39Z",
+  "generated_at": "2026-09-11T20:44:42Z",
   "lines": {
-    "coverage": "78.57%",
-    "missed": 9705,
-    "total": 45284
+    "coverage": "78.44%",
+    "missed": 11297,
+    "total": 52408
   },
   "package": "workspace",
   "regions": {
-    "coverage": "77.82%",
-    "missed": 14174,
-    "total": 63908
+    "coverage": "77.37%",
+    "missed": 16860,
+    "total": 74490
   },
-  "run_url": "https://github.com/chris-interlock/AgentENV/actions/runs/33430971387"
+  "run_url": "https://github.com/chris-interlock/AgentENV/actions/runs/34643840829"
 }
