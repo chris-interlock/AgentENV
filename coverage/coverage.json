@@ -9,17 +9,17 @@
     "missed": 1609,
     "total": 6196
   },
-  "generated_at": "2026-09-11T20:44:42Z",
+  "generated_at": "2026-09-14T17:10:12Z",
   "lines": {
-    "coverage": "78.44%",
-    "missed": 11297,
+    "coverage": "78.43%",
+    "missed": 11306,
     "total": 52408
   },
   "package": "workspace",
   "regions": {
-    "coverage": "77.37%",
-    "missed": 16860,
+    "coverage": "77.35%",
+    "missed": 16869,
     "total": 74490
   },
-  "run_url": "https://github.com/chris-interlock/AgentENV/actions/runs/34643840829"
+  "run_url": "https://github.com/chris-interlock/AgentENV/actions/runs/34871212170"
 }
