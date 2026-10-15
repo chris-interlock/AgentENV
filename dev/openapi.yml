@@ -389,6 +389,89 @@ components:
         onTimeout:
           $ref: "#/components/schemas/SandboxOnTimeout"
 
+    SandboxLogEntry:
+      required:
+        - timestamp
+        - level
+        - message
+        - fields
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the log entry
+        message:
+          type: string
+          description: Log message content
+        level:
+          $ref: "#/components/schemas/LogLevel"
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+
+    SandboxLogsV2Response:
+      required:
+        - logs
+      properties:
+        logs:
+          default: []
+          description: Sandbox logs structured
+          type: array
+          items:
+            $ref: "#/components/schemas/SandboxLogEntry"
+
+    SandboxMetric:
+      description: Metric entry with timestamp and line
+      required:
+        - timestamp
+        - timestampUnix
+        - cpuCount
+        - cpuUsedPct
+        - memUsed
+        - memTotal
+        - memCache
+        - diskUsed
+        - diskTotal
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          deprecated: true
+          description: Timestamp of the metric entry
+        timestampUnix:
+          type: integer
+          format: int64
+          description: Timestamp of the metric entry in Unix time (seconds since epoch)
+        cpuCount:
+          type: integer
+          format: int32
+          description: Number of CPU cores
+        cpuUsedPct:
+          type: number
+          format: float
+          description: CPU usage percentage
+        memUsed:
+          type: integer
+          format: int64
+          description: Memory used in bytes
+        memTotal:
+          type: integer
+          format: int64
+          description: Total memory in bytes
+        memCache:
+          type: integer
+          format: int64
+          description: Cached memory (page cache) in bytes
+        diskUsed:
+          type: integer
+          format: int64
+          description: Disk used in bytes
+        diskTotal:
+          type: integer
+          format: int64
+          description: Total disk space in bytes
+
     SandboxVolumeMount:
       type: object
       properties:
@@ -552,6 +635,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SandboxVolumeMount"
+
+    SandboxesWithMetrics:
+      required:
+        - sandboxes
+      properties:
+        sandboxes:
+          additionalProperties:
+            $ref: "#/components/schemas/SandboxMetric"
 
     NewSandbox:
       required:
@@ -1137,7 +1228,8 @@ components:
       properties:
         logs:
           default: []
-          description: Build logs
+          deprecated: true
+          description: Deprecated; always empty, use logEntries
           type: array
           items:
             type: string
@@ -1157,6 +1249,37 @@ components:
           $ref: "#/components/schemas/TemplateBuildStatus"
         reason:
           $ref: "#/components/schemas/BuildStatusReason"
+
+    TemplateBuildLogsResponse:
+      required:
+        - logs
+      properties:
+        logs:
+          default: []
+          description: Build logs structured
+          type: array
+          items:
+            $ref: "#/components/schemas/BuildLogEntry"
+
+    LogsDirection:
+      type: string
+      description: Direction of the logs that should be returned
+      enum:
+        - forward
+        - backward
+      x-enum-varnames:
+        - LogsDirectionForward
+        - LogsDirectionBackward
+
+    LogsSource:
+      type: string
+      description: Source of the logs that should be returned
+      enum:
+        - temporary
+        - persistent
+      x-enum-varnames:
+        - LogsSourceTemporary
+        - LogsSourcePersistent
 
     NodeStatus:
       type: string
@@ -1763,6 +1886,99 @@ paths:
         "500":
           $ref: "#/components/responses/500"
 
+  /sandboxes/metrics:
+    get:
+      summary: List sandbox metrics
+      x-api-group: list
+      description: Latest fresh samples for requested running sandboxes. Missing, paused, or unavailable sandboxes are omitted.
+      tags: [sandboxes]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: sandbox_ids
+          in: query
+          required: true
+          description: Comma-separated sandbox IDs.
+          explode: false
+          schema:
+            type: array
+            maxItems: 100
+            uniqueItems: true
+            items:
+              type: string
+      responses:
+        '200':
+          description: Successfully returned all running sandboxes with metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxesWithMetrics'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '500':
+          $ref: '#/components/responses/500'
+
+  /v2/sandboxes/{sandboxID}/logs:
+    get:
+      summary: Sandbox logs (v2)
+      description: Get sandbox logs
+      tags: [sandboxes]
+      security:
+        - ApiKeyAuth: []
+        - AuthProviderBearerAuth: []
+          AuthProviderTeamAuth: []
+        - AdminApiKeyAuth: []
+          AdminTeamAuth: []
+      parameters:
+        - $ref: "#/components/parameters/sandboxID"
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+          description: Starting timestamp of the logs that should be returned in milliseconds
+        - in: query
+          name: limit
+          schema:
+            default: 1000
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 1000
+          description: Maximum number of logs that should be returned
+        - in: query
+          name: direction
+          schema:
+            $ref: "#/components/schemas/LogsDirection"
+          description: Direction of the logs that should be returned
+        - in: query
+          name: level
+          schema:
+            $ref: "#/components/schemas/LogLevel"
+          description: Minimum log level to return. Logs below this level are excluded
+        - in: query
+          name: search
+          schema:
+            type: string
+            maxLength: 256
+          description: Case-sensitive substring match on log message content
+      responses:
+        "200":
+          description: Successfully returned the sandbox logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SandboxLogsV2Response"
+        "401":
+          $ref: "#/components/responses/401"
+        "404":
+          $ref: "#/components/responses/404"
+        "500":
+          $ref: "#/components/responses/500"
+
   /sandboxes/{sandboxID}:
     get:
       summary: Sandbox
@@ -1811,6 +2027,47 @@ paths:
           $ref: "#/components/responses/401"
         "500":
           $ref: "#/components/responses/500"
+
+  /sandboxes/{sandboxID}/metrics:
+    get:
+      summary: Sandbox metrics
+      description: Samples in the inclusive start/end interval, in ascending time order. Defaults to all retained samples. History is node-local, bounded, and lost on restart.
+      tags: [sandboxes]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/sandboxID'
+        - name: start
+          in: query
+          description: Unix timestamp in seconds, inclusive.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: end
+          in: query
+          description: Unix timestamp in seconds, inclusive.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        '200':
+          description: Successfully returned the sandbox metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SandboxMetric'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '404':
+          $ref: '#/components/responses/404'
+        '500':
+          $ref: '#/components/responses/500'
 
   # TODO: Pause and resume might be exposed as POST /sandboxes/{sandboxID}/snapshot and then POST /sandboxes with specified snapshotting setup
   /sandboxes/{sandboxID}/pause:
@@ -2493,6 +2750,27 @@ paths:
       parameters:
         - $ref: "#/components/parameters/templateID"
         - $ref: "#/components/parameters/buildID"
+        - in: query
+          name: logsOffset
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 2147483647
+            default: 0
+          description: Index of the starting log after level filtering
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 100
+            default: 100
+        - in: query
+          name: level
+          schema:
+            $ref: "#/components/schemas/LogLevel"
       responses:
         "200":
           description: Successfully returned the template
@@ -2500,6 +2778,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TemplateBuildInfo"
+        "400":
+          $ref: "#/components/responses/400"
+        "401":
+          $ref: "#/components/responses/401"
+        "404":
+          $ref: "#/components/responses/404"
+        "500":
+          $ref: "#/components/responses/500"
+
+  /templates/{templateID}/builds/{buildID}/logs:
+    get:
+      summary: Template build logs
+      description: Get template build logs
+      tags: [templates]
+      security:
+        - ApiKeyAuth: []
+        - AuthProviderBearerAuth: []
+          AuthProviderTeamAuth: []
+        - AdminApiKeyAuth: []
+          AdminTeamAuth: []
+      parameters:
+        - $ref: "#/components/parameters/templateID"
+        - $ref: "#/components/parameters/buildID"
+        - in: query
+          name: cursor
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            maximum: 9223372036854775807
+          description: Inclusive starting timestamp in milliseconds
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 100
+            default: 100
+        - in: query
+          name: level
+          schema:
+            $ref: "#/components/schemas/LogLevel"
+        - in: query
+          name: direction
+          schema:
+            $ref: "#/components/schemas/LogsDirection"
+        - in: query
+          name: source
+          description: Source of the logs that should be returned from
+          schema:
+            $ref: "#/components/schemas/LogsSource"
+      responses:
+        "200":
+          description: Successfully returned the template build logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateBuildLogsResponse"
         "400":
           $ref: "#/components/responses/400"
         "401":
